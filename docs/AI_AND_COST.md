@@ -4,7 +4,7 @@
 
 | Параметр | Значение по умолчанию | Где меняется |
 |---|---|---|
-| Провайдер | Anthropic (Claude Messages API) | `AI_PROVIDER` = `auto` / `anthropic` / `openai` / `rules` |
+| Провайдер | Anthropic (Claude Messages API) | `AI_PROVIDER` = `auto` / `anthropic` / `openai` / `claude-code-cli` / `rules` |
 | Модель | `claude-sonnet-5-5` | `ANTHROPIC_MODEL` |
 | Формат ответа | Структурированный JSON по схеме (`output_config.format: json_schema`) | автоматически; если API отклонит параметр — повтор без него с JSON по инструкции |
 | Глубина рассуждений | `effort: medium` | `ANTHROPIC_EFFORT` (`low` / `medium` / `high`, пусто — не отправлять) |
@@ -14,6 +14,23 @@
 | Альтернативы | OpenAI или любая OpenAI-совместимая модель, локально через Ollama | `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_RESPONSE_FORMAT` |
 
 Сервер не отправляет `temperature`, принудительный выбор инструментов и «предзаполнение» ответа — только системный промпт, сообщения и схему ответа.
+
+### Подписка Claude через Claude Code (`AI_PROVIDER=claude-code-cli`)
+
+Для тех, у кого есть подписка Claude Pro/Max, но нет оплаты API. Провайдер `server/evaluation/providers/claude-code-cli.js`
+запускает официальный `claude -p` (`--output-format stream-json --verbose --json-schema … --tools "" --no-session-persistence
+--setting-sources "" --system-prompt …`, при наличии — `--safe-mode --strict-mcp-config --disable-slash-commands --effort`)
+из пустой временной папки; диалог и чек-лист передаются через stdin. Учётные данные API (`ANTHROPIC_API_KEY`,
+`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, Bedrock/Vertex/Foundry, `CLAUDE_CODE_SIMPLE`) из окружения CLI убираются:
+в режиме `-p` ключ API из окружения всегда важнее подписки. Перед первым вызовом — `claude auth status`
+(`loggedIn`, `authMethod = claude.ai`), в каждом вызове — событие `init` с `apiKeySource: none`; иначе вызов
+останавливается. `--bare` не используется: в этом режиме Claude Code принимает только ключ API.
+
+Стоимость в долларах не начисляется: расход идёт из лимитов подписки (по справке Anthropic на ноябрь 2026 года
+`claude -p` на тарифе Pro расходует обычные лимиты подписки). Доплата возможна только если в настройках claude.ai
+включены usage credits — их нужно держать выключенными. Подписочный вход разрешён только для самого Claude Code и
+claude.ai; проект токены не читает и не передаёт, а вызывает неизменённый `claude` от имени пользователя.
+Поля `usage` в оценке — токены, которые сообщил CLI; `cost_usd` = 0, `billing` = `subscription`.
 
 ## Что получает модель
 

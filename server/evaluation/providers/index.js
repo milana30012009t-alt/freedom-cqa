@@ -3,6 +3,7 @@
 import { resolveProvider } from '../../config.js';
 import { AnthropicProvider } from './anthropic.js';
 import { OpenAICompatibleProvider } from './openai-compatible.js';
+import { ClaudeCodeCliProvider } from './claude-code-cli.js';
 
 /** Scriptable provider for tests and demos without network: `respond(prompt, attempt)`. */
 export class MockProvider {
@@ -29,5 +30,6 @@ export function createProvider(cfg, { fetchImpl, override } = {}) {
   const id = resolveProvider(cfg);
   if (id === 'anthropic') return new AnthropicProvider(cfg, { fetchImpl });
   if (id === 'openai') return new OpenAICompatibleProvider(cfg, { fetchImpl });
+  if (id === 'claude-code-cli') return new ClaudeCodeCliProvider(cfg);
   return null; // offline rules engine
 }

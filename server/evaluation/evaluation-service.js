@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { DirCollection } from '../storage/json-store.js';
 import { evaluateWithRules, RULES_ENGINE_VERSION } from './rules/rules-engine.js';
-import { buildPrompt, buildFocus } from './prompt.js';
+import { buildPrompt } from './prompt.js';
 import { AI_OUTPUT_SCHEMA, AiOutputError, validateAiOutput } from './output-schema.js';
 import { enrichEvidence, enrichRange } from './evidence.js';
 import { createProvider } from './providers/index.js';
@@ -123,6 +123,7 @@ export class EvaluationService {
     let warnings = [];
     let engineUsed = 'rules';
     let model = null;
+    let modelServed = null;
     let promptVersion = null;
     let fallback = null;
     const usage = { calls: 0, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, cost_usd: 0 };
@@ -136,13 +137,16 @@ export class EvaluationService {
         transcriptIssues = ai.transcriptIssues;
         warnings = ai.warnings;
         Object.assign(usage, ai.usage);
-        usage.cost_usd = Number(costUsd(usage, this.cfg.ai.pricing).toFixed(6));
+        // subscription via Claude Code: no per-token charge (usage counts against the plan's limits)
+        usage.cost_usd = provider.info.id === 'claude-code-cli' ? 0 : Number(costUsd(usage, this.cfg.ai.pricing).toFixed(6));
+        if (provider.info.id === 'claude-code-cli') usage.billing = 'subscription';
         engineUsed = provider.info.id;
         model = provider.info.model;
+        modelServed = ai.modelServed || null;
         promptVersion = ai.promptVersion;
       } catch (e) {
         logger.warn(`AI-оценка ${uid} не удалась: ${e.message}`);
-        if (!this.cfg.ai.fallbackToRules) throw new EvaluationError(`Ошибка AI-оценки: ${e.message}`, 502, { errors: e.errors });
+        if (!this.cfg.ai.fallbackToRules) throw new EvaluationError(`Ошибка AI-оценки: ${e.message}`, 502, { errors: e.errors, code: e.code || null, fatal: Boolean(e.fatal) });
         fallback = { reason: e.message, errors: e.errors || [] };
       }
     }
@@ -211,6 +215,9 @@ export class EvaluationService {
         used: engineUsed,
         label: engineUsed === 'rules' ? ENGINE_LABELS.rules : provider?.info.label || engineUsed,
         model,
+        model_served: modelServed,
+        endpoint: provider?.info.endpoint || null,
+        model_mode: provider?.info.mode || null,
         rules_version: RULES_ENGINE_VERSION,
         prompt_version: promptVersion,
         fallback,
@@ -254,7 +261,6 @@ export class EvaluationService {
       ...rules.results.filter((r) => r.flag_subtypes?.length).flatMap((r) => r.flag_subtypes.map((s) => ({ signal: `${r.criterion_id}:${s.id}`, evidence_ids: s.evidence }))),
     ];
     const prompt = buildPrompt(conv, checklist, aiCriteria, { preScreening });
-    if (this.cfg.ai.perCriterion) return this.runAiPerCriterion({ conv, checklist, provider, rules, enabled, aiCriteria, prompt });
     const usage = { calls: 0, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 };
     let repairNote = null;
     let lastError = null;
@@ -289,60 +295,9 @@ export class EvaluationService {
       const rulesById = new Map(rules.results.map((r) => [r.criterion_id, r]));
       const aiById = new Map(v.results.map((r) => [r.criterion_id, r]));
       const results = enabled.map((c) => (c.evaluation_mode === 'rules' ? rulesById.get(c.id) : aiById.get(c.id)));
-      return { results, findings: v.findings, summary: v.summary, transcriptIssues: v.transcriptIssues, warnings: [...v.errors, ...v.warnings], usage, promptVersion: prompt.version };
+      return { results, findings: v.findings, summary: v.summary, transcriptIssues: v.transcriptIssues, warnings: [...v.errors, ...v.warnings], usage, promptVersion: prompt.version, modelServed: resp.model || null };
     }
     throw lastError || new AiOutputError('AI вернул невалидный ответ');
-  }
-
-  async runAiPerCriterion({ conv, checklist, provider, rules, enabled, aiCriteria, prompt }) {
-    const usage = { calls: 0, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 };
-    const aiById = new Map();
-    const warnings = [];
-    const transcriptIssues = [];
-    let findings = [];
-    let summary = '';
-    const base = prompt.conversationBlock.replace(/Оцени оператора по всем критериям[^\n]*$/, '');
-    for (const c of aiCriteria) {
-      const focused = { ...prompt, conversationBlock: base + buildFocus(c) };
-      let v = null;
-      let repairNote = null;
-      let lastError = null;
-      for (let attempt = 1; attempt <= 2 && !v; attempt += 1) {
-        try {
-          usage.calls += 1;
-          const resp = await provider.evaluate({ ...focused, schema: AI_OUTPUT_SCHEMA, repairNote });
-          for (const k of ['input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens']) usage[k] += resp.usage?.[k] || 0;
-          let raw = resp.output;
-          if (raw && Array.isArray(raw.criteria) && raw.criteria.length) {
-            const hit = raw.criteria.find((x) => String(x?.criterion_id || '').toLowerCase() === c.id.toLowerCase()) || raw.criteria[0];
-            raw = { ...raw, criteria: [{ ...hit, criterion_id: c.id }] };
-          }
-          const one = validateAiOutput(raw, checklist, conv, [c]);
-          if (one.results[0].status === 'not_evaluated' && one.errors.length && attempt < 2) {
-            lastError = new AiOutputError(one.errors[0], one.errors);
-            repairNote = `Ошибки проверки ответа: ${one.errors.slice(0, 4).join('; ')}. Исправь и верни JSON с одним элементом criteria.`;
-            continue;
-          }
-          v = one;
-        } catch (e) {
-          if (!(e instanceof AiOutputError)) throw e;
-          lastError = e;
-          repairNote = `Предыдущий ответ отклонён: ${e.message}. Верни корректный JSON строго по схеме, criteria из одного элемента.`;
-        }
-      }
-      if (!v) {
-        v = validateAiOutput({ criteria: [] }, checklist, conv, [c]);
-        v.errors.push(`${c.code}: ${lastError?.message || 'AI не вернул результат'}`);
-      }
-      aiById.set(c.id, v.results[0]);
-      warnings.push(...v.errors, ...v.warnings);
-      if (c.scoring_role === 'flag') findings = v.findings;
-      if (!summary && v.summary) summary = v.summary;
-      transcriptIssues.push(...v.transcriptIssues);
-    }
-    const rulesById = new Map(rules.results.map((r) => [r.criterion_id, r]));
-    const results = enabled.map((c) => (c.evaluation_mode === 'rules' ? rulesById.get(c.id) : aiById.get(c.id)));
-    return { results, findings, summary, transcriptIssues, warnings, usage, promptVersion: `${prompt.version}+per-criterion` };
   }
 
   buildFindings(conv, checklist, results, aiFindings, rules, engineUsed) {

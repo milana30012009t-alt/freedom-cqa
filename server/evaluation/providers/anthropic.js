@@ -16,7 +16,7 @@ export class AnthropicProvider {
   }
 
   get info() {
-    return { id: 'anthropic', model: this.cfg.model, label: `Claude · ${this.cfg.model}` };
+    return { id: 'anthropic', model: this.cfg.model, label: `Claude · ${this.cfg.model}`, endpoint: this.cfg.baseUrl };
   }
 
   buildBody({ system, checklistBlock, conversationBlock, schema, repairNote }) {
@@ -94,6 +94,7 @@ export class AnthropicProvider {
       output,
       rawText: text,
       stopReason,
+      model: data.model || null, // model id reported by the API (what actually answered)
       usage: {
         input_tokens: u.input_tokens || 0,
         output_tokens: u.output_tokens || 0,

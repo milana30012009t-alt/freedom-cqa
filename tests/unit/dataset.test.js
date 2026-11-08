@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseDatasetPayload, DatasetError } from '../../server/data/dataset-validator.js';
 import { buildConversation } from '../../server/data/transcript-model.js';
+import { normalizeText } from '../../shared/text-quality.js';
 import { MINI, readJson, devFile, toMojibake } from '../helpers.js';
 
 test('API payload: records extracted, structure validated', () => {
@@ -76,7 +77,15 @@ test('DEV dataset: 65 records, 35 RU / 15 KZ / 15 EN, 60 chats / 5 calls, all ro
   const speakers = new Set(convs.flatMap((c) => c.messages.map((m) => m.speaker)));
   assert.deepEqual([...speakers].sort(), ['bot', 'client', 'operator', 'system']);
   assert.equal(convs.reduce((s, c) => s + c.quality.unrepaired_messages, 0), 0);
-  assert.ok(convs.reduce((s, c) => s + c.quality.repaired_messages, 0) > 1000);
+  // 1032 whole-message repairs + 5 fragment repairs (short replies / a word inside English text)
+  assert.equal(convs.reduce((s, c) => s + c.quality.repaired_messages, 0), 1037);
+  // round trip with the platform's standard windows-1251 decoder: damage(repaired) === original, for every repair
+  const cp1251 = new TextDecoder('windows-1251');
+  const damage = (t) => cp1251.decode(Buffer.from(t, 'utf8')).replace(/\u00A0/g, ' ');
+  const repaired = convs.flatMap((c) => c.messages.filter((m) => m.changed));
+  assert.ok(repaired.every((m) => damage(m.text) === m.original));
+  // the repaired texts are a large clean RU/KZ/EN corpus: running the repair again must change nothing
+  assert.ok(repaired.every((m) => normalizeText(m.text, {}).changed === false));
   const calls = convs.filter((c) => c.channel_type === 'call');
   assert.ok(calls.every((c) => c.has_audio && c.timestamp_kind === 'iso'));
   assert.ok(convs.filter((c) => c.channel_type === 'chat').every((c) => c.timestamp_kind === 'clock' && !c.has_audio));

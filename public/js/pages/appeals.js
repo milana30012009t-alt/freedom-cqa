@@ -32,7 +32,7 @@ export async function render(root, { params, query, isCurrent }) {
     mount(tabs, FILTERS.map(([v, l]) => h('button', { class: filter === v ? 'active' : '', onclick: () => { filter = v; loadList(); } }, l,
       h('span', { class: 'count' }, String(v ? data.counts[v] || 0 : data.counts.total)))));
     if (!data.items.length) {
-      mount(listBox, emptyState('scale', 'Апелляций нет', 'Специалист подаёт апелляцию из карточки диалога: раскройте критерий → «Оспорить оценку».'));
+      mount(listBox, emptyState('scale', 'Апелляций нет', 'Оператор подаёт апелляцию из карточки диалога: раскройте критерий → «Оспорить оценку».'));
       return;
     }
     mount(listBox, h('table', { class: 'table' },
@@ -52,7 +52,7 @@ export async function render(root, { params, query, isCurrent }) {
     h('div', { class: 'page-head' }, h('div', {}, h('h1', {}, 'Апелляции и ручной пересмотр'),
       h('div', { class: 'sub' }, 'Статусы: Новая → Ожидает рассмотрения → Подтверждена / Изменена → Закрыта. История не удаляется.')),
       h('div', { class: 'spacer' }),
-      h('span', { class: 'chip outline' }, icon(store.state.role === 'reviewer' ? 'gavel' : 'user'), `Роль: ${store.state.role === 'reviewer' ? 'проверяющий' : 'специалист КК'}`)),
+      h('span', { class: 'chip outline' }, icon(store.state.role === 'reviewer' ? 'gavel' : 'user'), `Роль: ${store.state.role === 'reviewer' ? 'проверяющий' : 'оператор'}`)),
     h('div', { class: 'card' }, tabs, listBox));
   await loadList();
 
@@ -99,10 +99,10 @@ async function openAppeal(id, onChange) {
           h('dt', {}, 'Итог диалога'), h('dd', {}, `${fmtScore(a.original.total)} (оценка ${a.evaluation_id}, чек-лист v${a.checklist_version})`),
           h('dt', {}, 'Источник оценки'), h('dd', {}, a.original.engine === 'rules' ? 'офлайн-правила' : 'AI-модель'),
           h('dt', {}, 'Уверенность'), h('dd', {}, a.original.confidence !== null ? `${Math.round(a.original.confidence * 100)}%` : '—')),
-        h('div', {}, h('div', { class: 'xs muted' }, 'Пояснение AI / правил'), h('div', { class: 'small' }, a.original.explanation || '—')))));
+        h('div', {}, h('div', { class: 'xs muted' }, 'Пояснение автоматической оценки'), h('div', { class: 'small' }, a.original.explanation || '—')))));
 
     content.push(h('div', { class: 'banner info' }, icon('user'), h('div', { class: 'b-body' },
-      h('div', {}, h('b', {}, 'Комментарий специалиста: '), a.comment),
+      h('div', {}, h('b', {}, 'Комментарий оператора: '), a.comment),
       h('div', { class: 'xs muted' }, `${actorLabel(a.created_by)} · ${fmtDate(a.created_at)}`))));
 
     content.push(h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', {}, 'Фрагмент диалога'), h('span', { class: 'hint' }, a.original.checked_range ? `проверенный участок ${a.original.checked_range.from}–${a.original.checked_range.to}` : 'реплики-доказательства')),
@@ -138,7 +138,7 @@ async function openAppeal(id, onChange) {
     } else if (open && role !== 'reviewer') {
       content.push(h('div', { class: 'banner warning' }, icon('info'), h('div', { class: 'b-body' },
         h('div', {}, 'Решение принимает проверяющий. Для демонстрации переключите роль в шапке на «Проверяющий».'),
-        a.status === 'new' ? h('div', {}, h('button', { class: 'btn sm', onclick: async () => { try { await api.post(`/api/appeals/${a.id}/close`, { note: 'Отозвана специалистом' }); toast('Апелляция отозвана', 'info'); await refresh(); } catch (e) { errorToast(e); } } }, 'Отозвать апелляцию')) : null)));
+        a.status === 'new' ? h('div', {}, h('button', { class: 'btn sm', onclick: async () => { try { await api.post(`/api/appeals/${a.id}/close`, { note: 'Отозвана оператором' }); toast('Апелляция отозвана', 'info'); await refresh(); } catch (e) { errorToast(e); } } }, 'Отозвать апелляцию')) : null)));
     } else if (a.status === 'confirmed' || a.status === 'changed') {
       content.push(h('div', { class: 'row' }, h('button', { class: 'btn', onclick: async () => { try { await api.post(`/api/appeals/${a.id}/close`, { note: 'Решение принято' }); toast('Апелляция закрыта', 'good'); await refresh(); } catch (e) { errorToast(e); } } }, icon('check'), 'Закрыть апелляцию')));
     }

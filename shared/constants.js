@@ -62,7 +62,7 @@ export const APPEAL_STATUSES = Object.freeze({
 export const APPEAL_OPEN_STATUSES = Object.freeze(['new', 'pending']);
 
 export const ROLES = Object.freeze({
-  specialist: 'Специалист КК',
+  specialist: 'Оператор', // the user who views the evaluation and files appeals (key kept for stored history)
   reviewer: 'Проверяющий',
 });
 
@@ -81,8 +81,9 @@ export const REVIEW_PRIORITY_LABELS = Object.freeze({
 });
 
 export const ENGINE_LABELS = Object.freeze({
-  rules: 'Офлайн-движок правил',
+  rules: 'Офлайн-правила (без AI)',
   anthropic: 'Claude (Anthropic API)',
   openai: 'OpenAI-совместимая модель',
+  'claude-code-cli': 'Claude Code CLI (подписка Claude)',
   mock: 'Тестовый провайдер',
 });

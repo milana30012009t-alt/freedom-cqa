@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://freedom-cqa.local/schemas/results-1.0.schema.json",
+  "title": "Freedom Broker CQA — Results JSON 1.0",
+  "description": "Структурная схема файлов results/dev/results.json и results/prod/results.json. Сверку с данными организаторов (ID, номера реплик, цитаты, независимый пересчёт final_score, число записей) выполняет scripts/validate-results.js.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "team_name", "model", "results"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "team_name": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "name"],
+      "properties": {
+        "mode": { "enum": ["local", "external_api", "hybrid"] },
+        "name": { "type": "string", "minLength": 1, "pattern": "\\S" }
+      }
+    },
+    "results": { "type": "array", "items": { "$ref": "#/$defs/record" } }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conversation_id", "status", "criteria", "score", "error"],
+      "properties": {
+        "conversation_id": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["ok", "error"] },
+        "criteria": { "type": "array" },
+        "score": { "type": ["object", "null"] },
+        "error": { "type": ["string", "null"] }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "status": { "const": "ok" },
+            "criteria": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "items": { "$ref": "#/$defs/criterion" },
+              "allOf": [
+                { "contains": { "properties": { "criterion_id": { "const": "contact" } } }, "minContains": 1, "maxContains": 1 },
+                { "contains": { "properties": { "criterion_id": { "const": "discovery" } } }, "minContains": 1, "maxContains": 1 },
+                { "contains": { "properties": { "criterion_id": { "const": "identification" } } }, "minContains": 1, "maxContains": 1 },
+                { "contains": { "properties": { "criterion_id": { "const": "consultation" } } }, "minContains": 1, "maxContains": 1 },
+                { "contains": { "properties": { "criterion_id": { "const": "empathy" } } }, "minContains": 1, "maxContains": 1 },
+                { "contains": { "properties": { "criterion_id": { "const": "dialogue" } } }, "minContains": 1, "maxContains": 1 },
+                { "contains": { "properties": { "criterion_id": { "const": "closure" } } }, "minContains": 1, "maxContains": 1 },
+                { "contains": { "properties": { "criterion_id": { "const": "critical" } } }, "minContains": 1, "maxContains": 1 }
+              ]
+            },
+            "score": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["final_score", "critical_flag"],
+              "properties": {
+                "final_score": { "type": "number", "minimum": 0, "maximum": 100, "$comment": "Не более двух знаков после запятой. multipleOf: 0.01 не используется: из-за двоичной арифметики он ложно отклоняет корректные значения (например 0.07). Правило проверяет scripts/validate-results.js." },
+                "critical_flag": { "type": "boolean" }
+              }
+            },
+            "error": { "type": "null" }
+          }
+        },
+        {
+          "properties": {
+            "status": { "const": "error" },
+            "criteria": { "type": "array", "maxItems": 0 },
+            "score": { "type": "null" },
+            "error": { "type": "string", "minLength": 1, "pattern": "\\S" }
+          }
+        }
+      ]
+    },
+    "turns": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "uniqueItems": true },
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterion_id", "value", "rationale", "evidence_turns"],
+      "properties": {
+        "criterion_id": { "enum": ["contact", "discovery", "identification", "consultation", "empathy", "dialogue", "closure", "critical"] },
+        "value": { "type": ["boolean", "integer", "null"] },
+        "rationale": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "evidence_turns": { "$ref": "#/$defs/turns" }
+      },
+      "oneOf": [
+        { "properties": { "criterion_id": { "const": "contact" }, "value": { "type": "boolean" } } },
+        { "properties": { "criterion_id": { "const": "discovery" }, "value": { "type": ["boolean", "null"] } } },
+        { "properties": { "criterion_id": { "const": "identification" }, "value": { "type": ["boolean", "null"] } } },
+        { "properties": { "criterion_id": { "const": "consultation" }, "value": { "enum": [0, 5, 10, 15, 20, null] } } },
+        { "properties": { "criterion_id": { "const": "empathy" }, "value": { "type": "boolean" } } },
+        { "properties": { "criterion_id": { "const": "dialogue" }, "value": { "enum": [0, 4, 7, 10] } } },
+        { "properties": { "criterion_id": { "const": "closure" }, "value": { "type": ["boolean", "null"] } } },
+        { "properties": { "criterion_id": { "const": "critical" }, "value": { "type": "boolean" } } }
+      ]
+    }
+  }
+}

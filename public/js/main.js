@@ -53,7 +53,7 @@ function renderFoot() {
 
 function renderTopbar() {
   const roleSwitch = h('div', { class: 'segmented role', role: 'group', 'aria-label': 'Роль (демо, без авторизации)' },
-    [['specialist', 'Специалист КК'], ['reviewer', 'Проверяющий']].map(([v, label]) => h('button', {
+    [['specialist', 'Оператор'], ['reviewer', 'Проверяющий']].map(([v, label]) => h('button', {
       class: store.state.role === v ? 'active' : '', 'data-value': v, title: v === 'reviewer' ? 'Рассматривает апелляции и меняет оценки' : 'Подаёт апелляции на оценки',
       onclick: () => { store.set({ role: v }); renderTopbar(); window.dispatchEvent(new CustomEvent('cqa:role')); },
     }, icon(v === 'reviewer' ? 'gavel' : 'user'), label)));

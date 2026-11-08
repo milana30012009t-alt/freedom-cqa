@@ -2,8 +2,9 @@
 // The schema avoids features that constrained decoding handles poorly (all fields required,
 // additionalProperties:false, answers as strings — validated against the checklist in code).
 import { normalizeAnswer } from '../../shared/checklist-schema.js';
+import { normQuote, quotesToCheck } from '../../shared/quotes.js';
 
-export const PROMPT_VERSION = 'cqa-prompt-v1';
+export const PROMPT_VERSION = 'cqa-prompt-v2';
 
 const STATUS = ['scored', 'na', 'not_evaluated'];
 const SITUATION = ['met', 'partial', 'not_met', 'na', 'unclear'];
@@ -123,6 +124,33 @@ function squash(s) {
 }
 
 /**
+ * «…» quotes inside the model's explanation must be verbatim transcript text (the explanation becomes the
+ * rationale of Results JSON). Verified quotes return the message they come from; a fragment that is not in the
+ * transcript is kept as the model's wording but explicitly marked as a paraphrase, never presented as a quote.
+ * Same extraction and comparison as the Results JSON validator (shared/quotes.js).
+ */
+export function checkExplanationQuotes(explanation, conv) {
+  const texts = conv.messages.map((m) => ({ id: m.id, t: normQuote(m.text) }));
+  let out = '';
+  let pos = 0;
+  const cited = [];
+  const invented = [];
+  for (const q of quotesToCheck(explanation)) {
+    const nq = normQuote(q.text);
+    if (nq.length < 4) continue;
+    const hit = texts.find((x) => x.t.includes(nq));
+    if (hit) {
+      cited.push({ id: hit.id, nq });
+      continue;
+    }
+    invented.push(q.text);
+    out += `${explanation.slice(pos, q.start)}[пересказ модели, дословно в транскрипте нет: ${q.text.replace(/[«»]/g, '"')}]`;
+    pos = q.end;
+  }
+  return { text: invented.length ? out + explanation.slice(pos) : explanation, cited, invented };
+}
+
+/**
  * Validate the model output against the checklist and the transcript.
  * Invalid parts never become scores: they are turned into "not_evaluated" with a review flag.
  * @returns {{results:Array, findings:Array, summary:string, transcriptIssues:Array, errors:string[], warnings:string[], invalidShare:number}}
@@ -194,6 +222,16 @@ export function validateAiOutput(raw, checklist, conv, criteria) {
       if (ok && String(q.quote || '').trim()) quotes.push({ message_id: n, quote: String(q.quote).trim() });
       else warnings.push(`${c.code}: цитата не найдена в реплике ${n} — заменена текстом реплики`);
       if (!evidenceIds.includes(n)) evidenceIds.push(n);
+    }
+    const eq = checkExplanationQuotes(explanation, conv);
+    if (eq.invented.length) {
+      warnings.push(`${c.code}: в обосновании цитата, которой нет в транскрипте («${eq.invented[0].slice(0, 60)}») — помечена как пересказ`);
+      explanation = eq.text;
+      needsReview = true;
+    }
+    for (const q of eq.cited) {
+      // a verified quote cites its message: keep evidence consistent with the rationale
+      if (!evidenceIds.some((id) => normQuote(msgById.get(id).text).includes(q.nq))) evidenceIds.push(q.id);
     }
     if (status === 'scored' && !evidenceIds.length) {
       warnings.push(`${c.code}: нет ссылок на реплики — вывод помечен для проверки`);

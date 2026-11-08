@@ -55,8 +55,8 @@ export async function render(root, { params, isCurrent }) {
 
   function renderMain() {
     clear(main);
-    if (state.mode === 'view') main.append(...viewMode());
-    else main.append(...editMode());
+    if (state.mode === 'view') main.append(...viewMode().filter(Boolean));
+    else main.append(...editMode().filter(Boolean));
   }
 
   // ------------------------------------------------------------------ view

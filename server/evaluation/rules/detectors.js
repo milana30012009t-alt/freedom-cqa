@@ -11,6 +11,10 @@ const NAME_PATTERNS = [
 ];
 const CONFIRM_TAG = /(?:верно|правильно|так|да|right|correct|солай ма|дұрыс па)\?\s*$/iu;
 const NAME_QUESTION = /(?:как (?:я )?(?:могу )?к вам обращаться|как вас зовут|каким мы к вам обращаться|как к вам обращаться|what(?:'s| is) your name|сізге қалай)/iu;
+// A request for missing information phrased without "?" ("Укажите, пожалуйста, в какой валюте был перевод").
+const INFO_REQUEST = /(?:^|[^\p{L}])(?:укажите|уточните|подскажите|напишите|назовите|сообщите|пришлите|жазыңыз|айтыңыз|көрсетіңіз|жіберсеңіз|tell me|let me know)(?:[^\p{L}]|$)[^.!?]*?(?:^|[^\p{L}])(?:как(?:ой|ая|ое|ие|ую|им)|в какой|когда|где|сколько|название|тикер|номер поручения|валют|қай|қашан|қандай|атау|тикер|which|what|when|how)(?:[^\p{L}]|$)/iu;
+/** Procedural step, not an answer: identity check request or waiting notice without substance. */
+const isProcedural = (f) => (f.idRequired || f.waitWarning) && !f.forward && !f.concrete;
 const LANG_NAMES = { RU: 'русском', KZ: 'казахском', EN: 'английском' };
 
 const ev = (m, role = 'supporting', note) => (m ? { message_id: m.id, role, ...(note ? { note } : {}) } : null);
@@ -121,9 +125,10 @@ export function need_discovery(ctx, criterion) {
       };
     }
   }
+  // PDF 02: "уточнил недостающее до ответа". A procedural step (identity check, waiting notice) is not the answer.
   const firstAnswer = ops.find((m) => {
     const f = opFlags.get(m.id);
-    return !f.violation && (f.concrete || f.forward || (!f.question && f.substantive));
+    return !f.violation && !isProcedural(f) && (f.concrete || f.forward || (!f.question && f.substantive));
   });
   if (ctx.issueStated && !firstAnswer && ops.every((m) => opFlags.get(m.id).violation || opFlags.get(m.id).generic || opFlags.get(m.id).farewellOnly)) {
     return {
@@ -137,9 +142,10 @@ export function need_discovery(ctx, criterion) {
   const clarifying = ops.find((m) => {
     if (m.index > limit) return false;
     const f = opFlags.get(m.id);
-    if (!f.question || f.generic || f.offerHelp || f.violation) return false;
-    const qs = splitSentences(m.text).filter((s) => s.includes('?'));
-    return qs.some((s) => !CONFIRM_TAG.test(s) && !NAME_QUESTION.test(s));
+    if (f.generic || f.offerHelp || f.violation) return false;
+    const sentences = splitSentences(m.text);
+    const asks = sentences.filter((x) => x.includes('?') || INFO_REQUEST.test(normalizeForMatch(x)));
+    return asks.some((x) => !CONFIRM_TAG.test(x) && !NAME_QUESTION.test(x) && !LEX.idRequired.test(normalizeForMatch(x)));
   });
   if (clarifying) {
     return {
@@ -190,9 +196,12 @@ export function identification(ctx, criterion) {
     };
   }
   if (idReq.length) {
+    // PDF 03: "Да — проверка личности подтверждена до раскрытия данных или защищённого действия".
+    // Requested but not confirmed, and nothing protected happened → the request as handled did not require it.
     return {
-      status: 'scored', situation: 'met', confidence: confidence(ctx, 0.72), evidence: [ev(idReq[0])], evidence_type: 'supporting_messages',
-      explanation: `Оператор потребовал подтверждение личности ${ref(idReq[0])} и не раскрывал данные счёта без него.`,
+      status: 'na', confidence: confidence(ctx, 0.65), evidence: [ev(idReq[0], 'context')], evidence_type: 'supporting_messages',
+      na_reason: 'Запрос не требовал идентификации.',
+      explanation: `Оператор предупредил о проверке личности ${ref(idReq[0])}, но личность в диалоге не подтверждалась, а данные счёта не раскрывались и защищённых действий не было — идентификация в итоге не потребовалась.`,
     };
   }
   if (accountReq.length) {
@@ -202,10 +211,13 @@ export function identification(ctx, criterion) {
       explanation: `Запрос касается конкретного счёта ${ref(accountReq[0])}, но оператор не раскрывал данные и не выполнял защищённых действий. Требуется ли идентификация — уточните у проверяющего.`,
     };
   }
+  // PDF p.3: "Общий вопрос о тарифах не требует идентификации" — the basis of N/A is the client's request itself.
+  const request = ((ctx.issueMessages || []).length ? ctx.issueMessages : clients).slice(0, 2);
   return {
-    status: 'na', confidence: confidence(ctx, 0.8), evidence: [], evidence_type: 'none',
+    status: 'na', confidence: confidence(ctx, 0.8),
+    evidence: request.map((m) => ev(m, 'context')), evidence_type: request.length ? 'supporting_messages' : 'none',
     na_reason: 'Запрос не требовал идентификации.',
-    explanation: 'Общий вопрос: оператор не раскрывал данные конкретного счёта и не выполнял защищённых действий, поэтому идентификация не требовалась.',
+    explanation: `${request.length ? `Общий вопрос клиента ${ref(request[0])}` : 'Общий вопрос'}: оператор не раскрывал данные конкретного счёта и не выполнял защищённых действий, поэтому идентификация не требовалась.`,
   };
 }
 
@@ -390,13 +402,36 @@ export function dialog_management(ctx, criterion, params = {}) {
     else if (cf.alreadySaid) glitches.push({ m: c, text: `клиенту пришлось повторить уже сказанное ${ref(c)}` });
     else if (cf.correction) glitches.push({ m: c, text: `клиент поправил оператора ${ref(c)}` });
   }
+  // The client asks the same question again after an operator reply: the reply did not close it
+  // ("Клиенту приходится переспрашивать из-за формулировок или порядка ответов"), even if resolved later.
+  const liveQs = clientLive.filter((m) => clientFlags.get(m.id)?.question);
+  for (let j = 1; j < liveQs.length; j += 1) {
+    const q2 = liveQs[j];
+    const s2 = contentStems(q2.text);
+    if (s2.size < 2 || reasks.some((r) => r.m.id === q2.id)) continue;
+    for (let i = 0; i < j; i += 1) {
+      const q1 = liveQs[i];
+      const between = ops.filter((m) => m.index > q1.index && m.index < q2.index);
+      if (!between.length) continue;
+      const s1 = contentStems(q1.text);
+      const common = [...s2].filter((x) => s1.has(x));
+      // A re-ask brings no new content: every stem of the second question was already in the first question or in
+      // the operator's reply between them. "Как пополнить в долларах?" → "А в евро можно?" is a new question.
+      const known = new Set([...s1, ...between.flatMap((m) => [...contentStems(m.text)])]);
+      const fresh = [...s2].filter((x) => !known.has(x));
+      if (common.length >= 2 && fresh.length === 0) {
+        reasks.push({ m: q2, op: between[between.length - 1], prev: q1, text: `клиент повторил вопрос ${ref(q2)} (ранее ${ref(q1)}) — ответ оператора его не закрыл` });
+        break;
+      }
+    }
+  }
   const confirmedAfter = (q) => clientLive.some((m) => m.index > q.index && clientFlags.get(m.id)?.resolved);
   const unanswered = clientLive.filter((m) => clientFlags.get(m.id)?.question)
     .map((q) => ({ q, ...analyzeQuestion(ctx, q) }))
     .filter((a) => !a.addressed && !confirmedAfter(a.q));
   for (const u of unanswered) {
     if (!glitches.some((g) => g.m.id === u.q.id) && !reasks.some((r) => r.m.id === u.q.id)) {
-      glitches.push({ m: u.replies[0] || u.q, text: `ответ не на заданный вопрос ${ref(u.q)}` });
+      glitches.push({ m: u.replies[0] || u.q, prev: u.replies[0] ? u.q : null, text: `ответ не на заданный вопрос ${ref(u.q)}` });
     }
   }
   for (const m of ops) {
@@ -410,7 +445,11 @@ export function dialog_management(ctx, criterion, params = {}) {
   else if (glitches.length === 1) share = 0.7;
   else share = 1;
   const items = [...reasks, ...glitches];
-  const evidence = compact(items.slice(0, 4).map((x) => ev(x.m, x.m.speaker === 'client' ? 'context' : 'supporting')));
+  // every message quoted in the explanation is part of the evidence (the client's re-ask, the operator's reply it
+  // follows, the earlier question it repeats)
+  const cited = [];
+  for (const x of items) for (const m of [x.prev, x.m, x.op]) if (m && !cited.some((c) => c.id === m.id)) cited.push(m);
+  const evidence = cited.sort((a, b) => a.index - b.index).map((m) => ev(m, m.speaker === 'client' ? 'context' : 'supporting'));
   const asrNote = ctx.isCall ? ' Звонок: ошибки распознавания речи не считаются сбоями оператора; оценка требует проверки по записи.' : '';
   return {
     status: 'scored', share, situation: share >= 1 ? 'met' : 'partial',
@@ -428,7 +467,11 @@ export function dialog_management(ctx, criterion, params = {}) {
 
 // 07 — closing.
 export function closing(ctx, criterion) {
-  const { ops, opFlags, msgs, events, clientFlags } = ctx;
+  // PDF 07: "Да — оператор подвёл итог или предложил дальнейшую помощь и попрощался.
+  //          N/A — чат оборвался до возможности его завершить."
+  // A courtesy formula ("Пожалуйста", "You're welcome", "Спасибо за обращение") or the client's thanks
+  // is neither a summary nor an offer of help.
+  const { ops, opFlags, msgs, events, clientLive } = ctx;
   if (!ctx.firstOp) return noOperator(ctx, criterion);
   const last = ctx.lastOp;
   const tail = ops.slice(-2);
@@ -439,26 +482,42 @@ export function closing(ctx, criterion) {
 
   if (fareMsg) {
     const f = opFlags.get(fareMsg.id);
-    const prevClient = [...msgs].reverse().find((m) => m.index < fareMsg.index && m.speaker === 'client');
-    const ackOfResolution = f.courtesy && prevClient && clientFlags.get(prevClient.id)?.resolved;
-    // Content beyond the farewell/courtesy formula in the final message counts as a short summary.
-    const rest = normalizeForMatch(fareMsg.text)
-      .replace(LEX.farewell, ' ').replace(LEX.courtesyAck, ' ').replace(LEX.closingFormula, ' ');
-    const contentWords = words(rest).filter((w) => w.length > 2);
-    const contentSummary = contentWords.length >= 4 && !f.vague && !f.dismissive && !LEX.vague.test(rest);
-    const summaryOrOffer = f.offerHelp || f.summary || f.closingFormula || ackOfResolution || contentSummary
-      || (f.concrete && !f.farewellOnly) || tail.some((m) => m.id !== fareMsg.id && (opFlags.get(m.id).summary || opFlags.get(m.id).offerHelp));
-    if (summaryOrOffer) {
+    const lastClient = clientLive[clientLive.length - 1];
+    // closing block: operator messages after the client's last message (the final exchange)
+    const block = ops.filter((m) => !lastClient || m.index > lastClient.index);
+    const residual = (m) => normalizeForMatch(m.text)
+      .replace(new RegExp(LEX.farewell.source, 'gu'), ' ').replace(new RegExp(LEX.courtesyAck.source, 'gu'), ' ')
+      .replace(new RegExp(LEX.closingFormula.source, 'gu'), ' ');
+    // "Подвёл итог" = restated the outcome or the next step of THIS request. Polite wishes ("желаю отличного
+    // настроения") are not a summary even when they are long: the remainder must name a next step/outcome or
+    // refer to the content of the conversation (client requests, bot context, the operator's earlier answers).
+    const caseStems = new Set(msgs.filter((m) => m.index < (block[0]?.index ?? Infinity)
+      && (m.speaker === 'client' || m.speaker === 'bot' || (m.speaker === 'operator' && opFlags.get(m.id)?.substantive)))
+      .flatMap((m) => [...contentStems(m.text)]));
+    const summaryIn = (m) => {
+      const rest = residual(m).replace(new RegExp(LEX.polite.source, 'gu'), ' ');
+      const content = words(rest).filter((w) => w.length > 2);
+      if (content.length < 2 || LEX.vague.test(rest)) return false;
+      const fl = opFlags.get(m.id);
+      return LEX.summary.test(rest) || fl.forward || fl.followUp || [...contentStems(rest)].some((x) => caseStems.has(x));
+    };
+    // An offer of further help is a closing move wherever it appears in the last two operator messages;
+    // a summary must be part of the final exchange (an earlier answer to a question is not a summary).
+    const offer = tail.find((m) => opFlags.get(m.id).offerHelp);
+    const outcome = block.find((m) => opFlags.get(m.id).summary);
+    const restated = block.find((m) => summaryIn(m));
+    const basis = offer || outcome || restated;
+    if (basis) {
       return {
-        status: 'scored', situation: 'met', confidence: confidence(ctx, ackOfResolution && !f.offerHelp && !f.summary ? 0.7 : 0.85),
-        evidence: [ev(fareMsg)], evidence_type: 'supporting_messages',
-        explanation: `Оператор ${f.offerHelp ? 'предложил дальнейшую помощь' : ackOfResolution ? 'подтвердил результат в ответ на благодарность клиента' : 'подвёл итог'} и попрощался: ${ref(fareMsg)}.`,
+        status: 'scored', situation: 'met', confidence: confidence(ctx, 0.85),
+        evidence: compact([ev(basis), basis.id !== fareMsg.id ? ev(fareMsg) : null]), evidence_type: 'supporting_messages',
+        explanation: `Оператор ${offer ? 'предложил дальнейшую помощь' : 'подвёл итог'} ${ref(basis)}${basis.id !== fareMsg.id ? ` и попрощался ${ref(fareMsg)}` : ' и попрощался'}.`,
       };
     }
     return {
-      status: 'scored', situation: 'not_met', confidence: confidence(ctx, 0.7), needs_human_review: true,
+      status: 'scored', situation: 'not_met', confidence: confidence(ctx, 0.8),
       evidence: [ev(fareMsg)], evidence_type: 'supporting_messages',
-      explanation: `Оператор только попрощался ${ref(fareMsg)} — без итога и без предложения дальнейшей помощи.`,
+      explanation: `Оператор попрощался ${ref(fareMsg)}, но не подвёл итог и не предложил дальнейшую помощь${f.courtesy || f.closingFormula ? ' (вежливая формула итогом не является)' : ''}.`,
       recommendation: 'Перед прощанием кратко подведите итог или предложите помощь: «Если появятся вопросы — пишите».',
     };
   }

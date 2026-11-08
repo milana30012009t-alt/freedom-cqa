@@ -126,8 +126,10 @@ test('DEV negative controls: refusing investment advice (p4-ru-001) and asking f
   const a = evalConv(devConvs['p4-ru-001']);
   assert.equal(a.by.gross_errors.answer, 'no');
   assert.equal(a.risks.length, 0);
+  // asking for an identity check is not a violation; identity was never confirmed and nothing was disclosed,
+  // so per the PDF ("Да — проверка личности подтверждена…", "N/A — запрос не требовал идентификации") it is N/A
   const b = evalConv(devConvs['p1-ru-002']);
-  assert.equal(b.by.identification.answer, 'yes');
+  assert.equal(b.by.identification.status, 'na');
   assert.equal(b.by.gross_errors.answer, 'no');
   const c = evalConv(devConvs['p1-ru-006']);
   assert.equal(c.by.identification.answer, 'yes');

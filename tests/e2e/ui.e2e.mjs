@@ -102,7 +102,7 @@ const flow = [
     await page.waitForFunction(() => document.querySelectorAll('.msg.evidence').length > 0);
     await shot('03-card-evidence');
   }],
-  ['специалист подаёт апелляцию по критерию 05', async () => {
+  ['оператор подаёт апелляцию по критерию 05', async () => {
     await page.click('#crit-empathy .crit-head');
     await page.locator('#crit-empathy button', { hasText: 'Оспорить оценку' }).click();
     await page.locator('.modal textarea').fill('Оператор был вежлив и извинился за ожидание');
@@ -177,6 +177,29 @@ const flow = [
     await page.locator('#app.embed').waitFor();
     await page.locator('.score-ring').waitFor();
     await shot('10-embed');
+  }],
+  ['ни на одной странице и в раскрытых карточках критериев нет «null» / «undefined» / «NaN»', async () => {
+    const bad = /(^|[^\p{L}])(null|undefined|NaN)([^\p{L}]|$)/u;
+    const pages = [['#/', 'набор'], ['#/conversations', 'Диалоги'], ['#/appeals', 'Апелляции'], ['#/checklists', 'Управление чек-листом'], ['#/analytics', 'Аналитика'], ['#/data', 'Данные']];
+    for (const [hash, heading] of pages) {
+      await open(hash, heading);
+      await page.waitForTimeout(200);
+      const text = await page.locator('#view').innerText();
+      expect(!bad.test(text), `${hash}: ${text.match(bad)?.[0]}`);
+    }
+    for (const id of ['TEST:t-ru-002', 'TEST:t-call-001', 'TEST:t-en-001']) {
+      await page.goto(`${BASE}/#/c/${encodeURIComponent(id)}`);
+      await page.locator('.crit-head').first().waitFor();
+      // expand every criterion (programmatic click: toasts may cover the headers)
+      await page.evaluate(() => document.querySelectorAll('.crit:not(.open) .crit-head').forEach((x) => x.click()));
+      for (const tab of ['Нарушения и риски', 'История', 'Качество текста']) {
+        const text = await page.locator('#view').innerText();
+        expect(!bad.test(text), `${id}: ${text.match(bad)?.[0]}`);
+        const t = page.locator('.tabs button, [role=tab]', { hasText: tab }).first();
+        if (await t.count()) { await t.click({ force: true }); await page.waitForTimeout(150); }
+      }
+      expect(!bad.test(await page.locator('#view').innerText()), `${id} (вкладки)`);
+    }
   }],
 ];
 

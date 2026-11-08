@@ -175,8 +175,9 @@ export async function render(root, { params, isCurrent }) {
       h('div', { class: 'score-block' },
         scoreRing(total, { tone: e ? scoreTone(total) : 'none', sub: e?.score_final.complete === false ? 'предварит.' : 'из 100' }),
         h('div', { class: 'score-side' },
-          e ? h('div', {}, 'Итог по чек-листу') : h('div', {}, 'Ещё не оценён'),
-          e && Number.isFinite(orig) && orig !== total ? h('div', { class: 'was' }, `Исходно (AI/правила): ${fmtScore(orig)}`) : null,
+          e ? h('div', {}, e.engine.used === 'rules' ? 'Предварительная автоматическая оценка' : 'AI-оценка (предварительная до проверки)') : h('div', {}, 'Ещё не оценён'),
+          e && e.engine.used === 'rules' ? h('div', { class: 'muted xs' }, 'офлайн-правила, без AI') : null,
+          e && Number.isFinite(orig) && orig !== total ? h('div', { class: 'was' }, `Исходная автоматическая оценка: ${fmtScore(orig)}`) : null,
           e ? h('div', { class: 'muted' }, `Применимо: ${e.score_final.coverage.criteria_evaluated} из ${e.score_final.coverage.criteria_total} критериев`) : null,
           e && e.score_final.gross_error === true ? h('div', { class: 'chip critical' }, icon('alert'), 'Грубые ошибки: Да') : e && e.score_final.gross_error === false ? h('div', { class: 'chip good' }, icon('check'), 'Грубые ошибки: Нет') : null))));
 
@@ -204,7 +205,7 @@ export async function render(root, { params, isCurrent }) {
     }
     if (state.data.row.evaluation?.stale) bannerBox.appendChild(h('div', { class: 'banner warning' }, icon('alert'), h('div', {}, 'Транскрипт изменился после оценки (набор данных обновлён) — переоцените диалог.')));
     if (e.engine.fallback) bannerBox.appendChild(h('div', { class: 'banner warning' }, icon('cpu'), h('div', {}, `AI-модель была недоступна (${e.engine.fallback.reason}) — использованы офлайн-правила.`)));
-    if (!e.score_final.complete) bannerBox.appendChild(h('div', { class: 'banner info' }, icon('info'), h('div', {}, `Предварительный итог: ${e.score_final.coverage.criteria_total - e.score_final.coverage.criteria_evaluated} критери(й/ев) не оценено автоматически (например, неразборчивый фрагмент звонка) — решение за проверяющим. Автоматического снижения балла нет.`)));
+    if (!e.score_final.complete) bannerBox.appendChild(h('div', { class: 'banner info' }, icon('info'), h('div', {}, `Предварительный итог: ${e.score_final.coverage.criteria_total - e.score_final.coverage.criteria_evaluated} критери(й/ев) не оценено автоматически (неразборчивый фрагмент звонка или критерий, для которого нет офлайн-правила, а AI не подключён). Итог посчитан только по оценённым критериям; решение за проверяющим. Автоматического снижения балла нет.`)));
     if (e.review.verified) bannerBox.appendChild(h('div', { class: 'banner good' }, icon('check'), h('div', {}, `Проверено человеком: ${actorLabel(e.review.verified.by)}, ${fmtDate(e.review.verified.at)}${e.review.verified.note ? ` — ${e.review.verified.note}` : ''}`)));
   }
 
@@ -248,7 +249,7 @@ export async function render(root, { params, isCurrent }) {
     clear(rightBody);
     const e = state.data.evaluation;
     const t = state.tab;
-    if (t === 'eval') rightBody.append(...evalTab(e));
+    if (t === 'eval') rightBody.append(...evalTab(e).filter(Boolean));
     else if (t === 'findings') rightBody.append(findingsTab(e));
     else if (t === 'appeals') rightBody.append(appealsTab());
     else if (t === 'history') rightBody.append(historyTab(e));
@@ -311,9 +312,11 @@ export async function render(root, { params, isCurrent }) {
             h('td', { class: 'num' }, r.role === 'flag' ? '—' : fmtScore(r.points)))))))));
     out.push(h('div', { class: 'eval-top' },
       h('div', { class: 'row' }, h('h3', {}, 'Итог: ', h('span', { class: `score-pill ${scoreTone(s.total)}` }, fmtScore(s.total)), h('span', { class: 'muted' }, ' / 100')),
+        s.complete === false ? h('span', { class: 'chip warning', title: 'Итог посчитан только по оценённым критериям' }, icon('alert'), `предварительный: не оценено ${s.coverage.criteria_total - s.coverage.criteria_evaluated}`) : null,
+        e.engine.used === 'rules' ? h('span', { class: 'chip outline', title: 'Результат офлайн-правил: не AI, требует подтверждения проверяющим' }, 'предварительная · офлайн-правила, без AI') : null,
         h('div', { class: 'spacer' }), h('span', { class: 'xs muted' }, cl.name)),
       sectionTiles.length ? h('div', { class: 'sections' }, sectionTiles) : null,
-      e.summary ? h('div', { class: 'banner info' }, icon('sparkle'), h('div', {}, h('b', {}, 'Резюме AI: '), e.summary)) : null,
+      e.summary ? h('div', { class: 'banner info' }, icon('sparkle'), h('div', {}, h('b', {}, e.engine.used === 'rules' ? 'Резюме автоматической оценки: ' : 'Резюме AI: '), e.summary)) : null,
       breakdown));
 
     const results = new Map(e.results.map((r) => [r.criterion_id, r]));
@@ -328,6 +331,7 @@ export async function render(root, { params, isCurrent }) {
       for (const c of crits) {
         out.push(criterionCard(c, results.get(c.id), rows.get(c.id), {
           override: e.overrides?.[c.id],
+          officialChecklist: e.checklist?.official === true,
           appeals: appealsByCrit[c.id] || [],
           open: state.open.has(c.id),
           onEvidence: (ids) => showEvidence(ids),
@@ -394,7 +398,7 @@ export async function render(root, { params, isCurrent }) {
 
   function appealsTab() {
     const list = state.data.appeals;
-    if (!list.length) return emptyState('scale', 'Апелляций нет', 'Специалист может оспорить оценку любого критерия кнопкой «Оспорить оценку».');
+    if (!list.length) return emptyState('scale', 'Апелляций нет', 'Оператор может оспорить оценку любого критерия кнопкой «Оспорить оценку».');
     return h('div', { class: 'col', style: { padding: '12px' } }, list.map((a) => h('a', { class: 'card', href: `#/appeals/${a.id}` },
       h('div', { class: 'card-head' }, appealChip(a.status), h('b', { class: 'mono' }, a.id), h('span', {}, `${a.criterion_code} ${a.criterion_name}`), h('div', { class: 'spacer' }), h('span', { class: 'xs muted' }, fmtDate(a.created_at))),
       h('div', { class: 'card-body small dim' }, `«${a.comment}»`, a.decision ? h('div', { class: 'mt-4' }, h('b', {}, 'Решение: '), `${a.decision.type === 'change' ? `${a.original.answer_label} → ${a.decision.answer_label}` : 'оценка подтверждена'} · итог ${fmtScore(a.decision.total_before)} → ${fmtScore(a.decision.total_after)}`) : null))));

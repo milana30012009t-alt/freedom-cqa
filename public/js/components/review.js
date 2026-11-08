@@ -67,8 +67,9 @@ export function criterionCard(c, r, row, ctx) {
 
   const evidence = r?.evidence || [];
   const supporting = evidence.filter((e) => e.role !== 'context');
-  body.append(
-    h('div', {}, h('div', { class: 'label' }, 'Критерий (официальная формулировка)'), h('div', { class: 'official' }, c.description || '—')),
+  // DOM append() would render null as the text "null": drop absent optional blocks
+  body.append(...[
+    h('div', {}, h('div', { class: 'label' }, ctx.officialChecklist ? 'Критерий (официальная формулировка)' : 'Формулировка критерия (версия чек-листа изменена командой)'), h('div', { class: 'official' }, c.description || '—')),
     c.guidance ? h('details', {}, h('summary', { class: 'small muted' }, 'Пояснение для единообразной оценки'), h('div', { class: 'note mt-4' }, c.guidance)) : null,
     h('div', {}, h('div', { class: 'label' }, 'Допустимые ответы'), describeAllowed(c)),
     h('div', {}, h('div', { class: 'label' }, 'Результат'),
@@ -94,7 +95,7 @@ export function criterionCard(c, r, row, ctx) {
     h('div', { class: 'row wrap' },
       store.state.role === 'specialist' ? h('button', { class: 'btn sm', disabled: Boolean(openAppeal), title: openAppeal ? 'По критерию уже есть открытая апелляция' : '', onclick: () => ctx.onAppeal?.(c, r) }, icon('scale'), 'Оспорить оценку') : null,
       store.state.role === 'reviewer' ? h('button', { class: 'btn sm', onclick: () => ctx.onOverride?.(c, r) }, icon('edit'), 'Изменить оценку') : null),
-  );
+  ].filter(Boolean));
   card.append(head, body);
   return card;
 }

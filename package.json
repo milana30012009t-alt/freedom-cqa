@@ -17,7 +17,12 @@
     "import": "node scripts/import-dataset.js",
     "evaluate": "node scripts/evaluate-all.js",
     "estimate": "node scripts/estimate-cost.js",
-    "reset": "node scripts/reset-demo.js"
+    "reset": "node scripts/reset-demo.js",
+    "export:dev": "node scripts/export-results.js dev",
+    "export:prod": "node scripts/export-results.js prod",
+    "check:model": "node scripts/check-model.js",
+    "validate:results": "node scripts/validate-results.js",
+    "preflight": "node scripts/preflight.js"
   },
   "license": "UNLICENSED"
 }

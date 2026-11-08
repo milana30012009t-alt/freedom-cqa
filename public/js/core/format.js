@@ -52,7 +52,7 @@ export function scorePill(v, { complete = true } = {}) {
 
 export const STATUS_META = {
   not_evaluated: { label: 'Не оценён', tone: '', icon: 'clock' },
-  auto: { label: 'Авто-оценка', tone: 'info', icon: 'sparkle' },
+  auto: { label: 'Предварительная (авто)', tone: 'info', icon: 'sparkle' },
   needs_review: { label: 'Требует проверки', tone: 'warning', icon: 'eye' },
   reviewed: { label: 'Проверен', tone: 'good', icon: 'check' },
   appeal: { label: 'Апелляция', tone: 'serious', icon: 'scale' },
@@ -102,6 +102,6 @@ export function confidenceMeter(c) {
 
 export function actorLabel(a) {
   if (!a) return '—';
-  const roles = { specialist: 'специалист', reviewer: 'проверяющий', system: 'система' };
+  const roles = { specialist: 'оператор', reviewer: 'проверяющий', system: 'система' };
   return a.name && a.name !== roles[a.role] ? `${a.name} (${roles[a.role] || a.role})` : roles[a.role] ? roles[a.role][0].toUpperCase() + roles[a.role].slice(1) : a.role;
 }

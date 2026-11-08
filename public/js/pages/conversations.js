@@ -143,7 +143,7 @@ export async function render(root, { query, isCurrent }) {
   } catch { checklist = null; }
   const failSel = h('select', { class: 'select', 'aria-label': 'Невыполненный критерий' },
     h('option', { value: '' }, 'Любые критерии'),
-    (checklist?.criteria || []).filter((c) => c.enabled).map((c) => h('option', { value: c.id, selected: f.fail === c.id }, `Не выполнен: ${c.code} ${c.name}`)));
+    (checklist?.criteria || []).filter((c) => c.enabled).map((c) => h('option', { value: c.id, selected: f.fail === c.id }, c.scoring_role === 'flag' ? `${c.code} ${c.name}: Да (выявлены)` : `Не выполнен: ${c.code} ${c.name}`)));
   failSel.addEventListener('change', () => { f.fail = failSel.value; load(); });
 
   const filters = h('div', { class: 'filters' },

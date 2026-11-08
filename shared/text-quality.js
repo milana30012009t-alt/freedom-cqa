@@ -79,6 +79,37 @@ function decodeUtf8Strict(bytes) {
   return strictDecoder.decode(bytes);
 }
 
+/** At least one "lead + continuation" pair (the signature of UTF-8 read as CP1251). */
+function hasLeadContinuationPair(run) {
+  for (let i = 0; i + 1 < run.length; i += 1) if (LEAD_CHARS.has(run[i]) && CONTINUATION_CHARS.has(run[i + 1])) return true;
+  return false;
+}
+
+/**
+ * Fragment-level repair for damage the whole-message detector cannot see: very short replies ("Рђ.", "РЎ 09:00.")
+ * or a damaged word inside Latin text ("labelled В«РљР°Р±РёРЅРµС‚В»"). Every maximal non-ASCII run is repaired only if
+ * it contains a lead+continuation pair AND decodes as strict UTF-8 into letters/punctuation; otherwise it is kept
+ * as is. Clean Cyrillic never passes: its letters map to consecutive lead bytes, which is invalid UTF-8.
+ */
+function repairFragments(text) {
+  let changed = false;
+  const out = text.replace(/[^\x00-\x7F]+/g, (run) => {
+    if (!hasLeadContinuationPair(run)) return run;
+    const bytes = toCp1251Bytes(run);
+    if (!bytes) return run;
+    let decoded;
+    try {
+      decoded = decodeUtf8Strict(bytes);
+    } catch {
+      return run;
+    }
+    if (!/^[\p{L}\p{M}\p{P}\p{S}\p{Zs}\d]+$/u.test(decoded) || /[\u0080-\u009F]/u.test(decoded)) return run;
+    changed = true;
+    return decoded;
+  });
+  return { text: out, changed };
+}
+
 /**
  * Try to repair "UTF-8 read as Windows-1251" damage.
  * @returns {{text:string, changed:boolean, method:string|null, detail:string}}
@@ -86,7 +117,12 @@ function decodeUtf8Strict(bytes) {
 export function repairMojibake(text) {
   if (typeof text !== 'string' || !text) return { text: text ?? '', changed: false, method: null, detail: 'empty' };
   const detection = detectMojibake(text);
-  if (!detection.isMojibake) return { text, changed: false, method: null, detail: 'clean' };
+  if (!detection.isMojibake) {
+    const fr = repairFragments(text);
+    return fr.changed
+      ? { text: fr.text, changed: true, method: 'utf8-as-cp1251', detail: 'fragments' }
+      : { text, changed: false, method: null, detail: 'clean' };
+  }
   let current = text;
   let rounds = 0;
   // Double damage is possible in principle; never loop more than twice.

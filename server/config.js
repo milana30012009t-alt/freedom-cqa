@@ -33,6 +33,7 @@ export function loadConfig(overrides = {}) {
     host: env.HOST || '127.0.0.1',
     port: int(env.PORT, 3000),
     dataDir: resolve(ROOT_DIR, env.DATA_DIR || 'data'),
+    teamName: String(env.TEAM_NAME || '').trim(), // Results JSON 1.0: team_name
     publicDir: resolve(ROOT_DIR, 'public'),
     sharedDir: resolve(ROOT_DIR, 'shared'),
     checklistSeedFile: resolve(ROOT_DIR, env.CHECKLIST_SEED_FILE || 'checklists/freedom-official.v1.json'),
@@ -49,7 +50,6 @@ export function loadConfig(overrides = {}) {
       provider, // auto | anthropic | openai | rules
       fallbackToRules: bool(env.AI_FALLBACK_TO_RULES, true),
       concurrency: Math.max(1, int(env.AI_CONCURRENCY, 3)),
-      perCriterion: bool(env.AI_PER_CRITERION, false),
       timeoutMs: int(env.AI_TIMEOUT_MS, 180000),
       maxRetries: int(env.AI_MAX_RETRIES, 2),
       outputLanguage: env.AI_OUTPUT_LANGUAGE || 'ru',
@@ -67,6 +67,13 @@ export function loadConfig(overrides = {}) {
         baseUrl: (env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
         model: env.OPENAI_MODEL || '',
         responseFormat: (env.OPENAI_RESPONSE_FORMAT || 'json_schema').toLowerCase(), // json_schema | json_object | none
+      },
+      // Local Claude Code CLI signed in with the user's Claude subscription (AI_PROVIDER=claude-code-cli).
+      // No API key is used: ANTHROPIC_API_KEY and other API credentials are removed from the CLI's environment.
+      claudeCode: {
+        path: env.CLAUDE_CODE_PATH || 'claude',
+        model: env.CLAUDE_CODE_MODEL || 'sonnet',
+        effort: env.CLAUDE_CODE_EFFORT === undefined ? 'medium' : env.CLAUDE_CODE_EFFORT, // '' — CLI default
       },
       pricing: {
         inputPerMTok: float(env.AI_PRICE_INPUT_PER_MTOK, 2),
@@ -97,6 +104,7 @@ export function resolveProvider(cfg) {
   if (p === 'anthropic') return cfg.ai.anthropic.apiKey ? 'anthropic' : 'rules';
   if (p === 'openai') return cfg.ai.openai.model && (cfg.ai.openai.apiKey || !cfg.ai.openai.baseUrl.includes('api.openai.com')) ? 'openai' : 'rules';
   if (p === 'mock') return 'mock';
+  if (p === 'claude-code-cli') return 'claude-code-cli'; // explicit only, never chosen by "auto"
   // auto
   if (cfg.ai.anthropic.apiKey) return 'anthropic';
   if (cfg.ai.openai.model && (cfg.ai.openai.apiKey || !cfg.ai.openai.baseUrl.includes('api.openai.com'))) return 'openai';

@@ -6,7 +6,7 @@ import { DETECTOR_FUNCTIONS } from './detectors.js';
 import { detectRiskSignals } from './risk.js';
 import { answerForSituation, normalizeAnswer, situationForAnswer } from '../../../shared/checklist-schema.js';
 
-export const RULES_ENGINE_VERSION = 'rules-2026.11.1';
+export const RULES_ENGINE_VERSION = 'rules-2026.11.3'; // 11.2: 07 strictly per PDF, 06 repeated questions, 02 info requests, 03 unconfirmed ID → N/A; 11.3: every quoted message is in the evidence (06), 03 N/A cites the client's request
 
 export function runCriterionDetector(ctx, criterion) {
   const base = { criterion_id: criterion.id, engine: 'rules', detector: criterion.detector?.type || null };

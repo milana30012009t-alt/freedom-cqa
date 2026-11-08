@@ -53,6 +53,7 @@ export function buildConversation(record, group) {
       original: n.original,
       changed: n.changed,
       method: n.method,
+      method_detail: n.method_detail,
       flags: n.flags,
       segment: 'live',
     };

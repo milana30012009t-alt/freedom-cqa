@@ -13,4 +13,8 @@ npm-debug.log*
 .DS_Store
 *.tmp
 tests/e2e/screenshots/
-*.bak-*
+
+# Results JSON: results/dev/results.json and results/prod/results.json ARE committed;
+# offline-rules previews are not a submission
+results/preview/
+*.tmp-*

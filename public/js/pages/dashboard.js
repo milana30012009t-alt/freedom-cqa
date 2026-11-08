@@ -66,7 +66,7 @@ export async function render(root, { isCurrent }) {
         a.checklist ? h('span', { class: a.checklist.official ? 'badge-official' : 'badge-custom' }, a.checklist.official ? 'официальный чек-лист' : 'изменённый чек-лист') : null,
         a.checklist ? `${a.checklist.name} · v${a.checklist.version}` : 'чек-лист не задан',
         h('span', {}, '·'),
-        sys?.engine.ai_available ? `AI: ${sys.engine.ai.label}` : 'Оценка: офлайн-правила (AI-ключ не задан)')),
+        sys?.engine.ai_available ? `AI: ${sys.engine.ai.label}` : 'Предварительная автоматическая оценка: офлайн-правила, AI не подключён')),
     h('div', { class: 'spacer' }),
     t.not_evaluated ? h('button', { class: 'btn primary', onclick: evalAll }, icon('sparkle'), `Оценить неоценённые (${t.not_evaluated})`) : null,
     h('a', { class: 'btn', href: '#/conversations' }, icon('chats'), 'Все диалоги'));

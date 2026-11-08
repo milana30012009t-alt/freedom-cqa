@@ -12,7 +12,7 @@ export class OpenAICompatibleProvider {
 
   get info() {
     const local = !this.cfg.baseUrl.includes('api.openai.com');
-    return { id: 'openai', model: this.cfg.model, label: `${local ? 'Локальная модель' : 'OpenAI'} · ${this.cfg.model}` };
+    return { id: 'openai', model: this.cfg.model, label: `${local ? 'Локальная модель' : 'OpenAI'} · ${this.cfg.model}`, endpoint: this.cfg.baseUrl };
   }
 
   async evaluate({ system, checklistBlock, conversationBlock, schema, repairNote }) {
@@ -49,6 +49,7 @@ export class OpenAICompatibleProvider {
       output,
       rawText: text,
       stopReason: choice?.finish_reason || null,
+      model: data.model || null, // model id reported by the server (e.g. "qwen2.5:14b" in Ollama)
       usage: { input_tokens: data.usage?.prompt_tokens || 0, output_tokens: data.usage?.completion_tokens || 0, cache_read_tokens: 0, cache_write_tokens: 0 },
     };
   }

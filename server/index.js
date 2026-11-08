@@ -19,7 +19,7 @@ app.server.listen(cfg.port, cfg.host, () => {
   const engine = resolveProvider(cfg);
   const status = app.services.datasets.status();
   logger.info(`CQA запущен: http://${cfg.host === '0.0.0.0' ? 'localhost' : cfg.host}:${cfg.port}`);
-  logger.info(`Оценка: ${engine === 'rules' ? 'офлайн-движок правил (AI-ключ не задан)' : `${engine} · ${engine === 'anthropic' ? cfg.ai.anthropic.model : cfg.ai.openai.model}`}`);
+  logger.info(`Оценка: ${engine === 'rules' ? 'офлайн-движок правил (AI-ключ не задан)' : `${engine} · ${engine === 'anthropic' ? cfg.ai.anthropic.model : engine === 'claude-code-cli' ? `${cfg.ai.claudeCode.model} (подписка Claude через Claude Code)` : cfg.ai.openai.model}`}`);
   logger.info(`Данные: ${status.groups.length ? status.groups.map((g) => `${g.group_id} (${g.record_count})`).join(', ') : 'не загружены'}; API: ${status.api_configured ? describeUrl(cfg.dataset.apiUrl) : 'не настроен'}`);
 });
 

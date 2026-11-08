@@ -197,3 +197,36 @@ test('analytics and cost estimate are computed from data', async () => {
   assert.equal(est.conversations, 5);
   assert.ok(est.total_usd > 0 && est.per_evaluation_usd > 0);
 });
+
+test('control task: replace a criterion → new version → new dialogs; without AI the new criterion is NOT scored', async () => {
+  const active = (await call('GET', '/api/checklists/active')).json;
+  const def = structuredClone(active.checklist);
+  const i = def.criteria.findIndex((c) => c.id === 'empathy');
+  def.criteria[i] = { ...def.criteria[i], id: 'service_rating', name: 'Предложение оценить обслуживание', description: 'Да — оператор предложил клиенту оценить качество обслуживания.', detector: null };
+  def.official = false;
+  const v = await call('POST', '/api/checklists', { checklist: def, change_note: 'Контроль: замена критерия 05', activate: true, parent_version: active.version }, 'reviewer');
+  assert.equal(v.status, 201, v.text);
+  assert.equal((await call('POST', '/api/datasets/fetch', { group_id: 'CONTROL', activate: true })).status, 200);
+  const job = await call('POST', '/api/evaluations/batch', { scope: 'outdated', engine: 'auto' });
+  for (let k = 0; k < 50; k += 1) { if ((await call('GET', `/api/jobs/${job.json.id}`)).json.status !== 'running') break; await new Promise((r) => setTimeout(r, 50)); }
+  const card = (await call('GET', `/api/conversations/${encodeURIComponent('CONTROL:c-t-ru-001')}`)).json;
+  assert.equal(card.evaluation.checklist_version, v.json.version);
+  assert.equal(card.evaluation.engine.used, 'rules');
+  const r = card.evaluation.results.find((x) => x.criterion_id === 'service_rating');
+  assert.equal(r.status, 'not_evaluated', 'no detector and no AI → no invented score');
+  assert.equal(card.evaluation.score_final.complete, false, 'total is marked preliminary');
+  assert.equal(card.evaluation.review.priority, 'high');
+  // a deterministic phrase rule (not AI) makes it evaluable; the result says which rule produced it
+  def.criteria[i].detector = { type: 'keyword_presence', params: { phrases: 'оцените\nrate our service', position: 'last' } };
+  const v2 = await call('POST', '/api/checklists', { checklist: def, change_note: 'Правило фраз для нового критерия', activate: true, parent_version: v.json.version }, 'reviewer');
+  const job2 = await call('POST', '/api/evaluations/batch', { scope: 'outdated', engine: 'auto' });
+  for (let k = 0; k < 50; k += 1) { if ((await call('GET', `/api/jobs/${job2.json.id}`)).json.status !== 'running') break; await new Promise((r2) => setTimeout(r2, 50)); }
+  const card2 = (await call('GET', `/api/conversations/${encodeURIComponent('CONTROL:c-t-ru-001')}`)).json;
+  assert.equal(card2.evaluation.checklist_version, v2.json.version);
+  const r2 = card2.evaluation.results.find((x) => x.criterion_id === 'service_rating');
+  assert.equal(r2.status, 'scored');
+  assert.equal(r2.engine, 'rules');
+  assert.equal(r2.detector, 'keyword_presence');
+  assert.equal(card.evaluations.length >= 1, true);
+  await call('POST', '/api/datasets/active', { group_id: 'TEST' });
+});

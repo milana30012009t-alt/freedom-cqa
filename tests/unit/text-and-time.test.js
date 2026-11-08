@@ -33,6 +33,27 @@ test('clean text is never modified (RU, KZ with "Сіз", EN with Cyrillic UI na
   }
 });
 
+test('fragment repair: short replies and a damaged word inside Latin text are restored exactly; original kept', () => {
+  for (const clean of ['А.', 'И.', 'Я.', 'С 09:00.', 'Open the account area, labelled «Кабинет» in the Russian interface.', 'Тикер: «ФРИДОМ» №5']) {
+    const broken = toMojibake(clean);
+    assert.notEqual(broken, clean);
+    const r = normalizeText(broken, { channelType: 'call' });
+    assert.equal(r.text, clean, `${JSON.stringify(broken)} → ${JSON.stringify(r.text)}`);
+    assert.equal(r.original, broken);
+    assert.ok(r.flags.includes('encoding_repaired'));
+  }
+});
+
+test('fragment repair never touches clean text (RU/KZ/EN, quotes, №, ё, Ї, short replies)', () => {
+  const clean = ['Р.', 'С.', 'В «Кабинете» откройте вкладку.', 'в«Котировках» есть поиск', 'Сіз тіркелдіңіз бе?', 'Өтінімді жібермей тұрып, «Настройки приказа» ашыңыз.',
+    'Ёлка, ёж, Їжак, № 15', 'Счёт № 123 — «Инвестор»', 'Hello — “quoted” text…', 'Ұ, Ү, Ғ, Қ, Ң, Ө, Һ, І', 'Р С Т У В в', 'А', 'Ok, СМС-код не нужен.'];
+  for (const src of clean) {
+    const r = normalizeText(src, {});
+    assert.equal(r.text, src, src);
+    assert.equal(r.changed, false, src);
+  }
+});
+
 test('original text is preserved alongside the normalised one', () => {
   const broken = toMojibake('Нашла, спасибо.');
   const r = normalizeText(broken, { channelType: 'chat' });
