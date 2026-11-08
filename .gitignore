@@ -1,0 +1,16 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime data: organisers' datasets (contain signed audio links), evaluations, appeals,
+# checklist versions and cached recordings. Never commit them to a public repository.
+data/*
+!data/README.md
+
+node_modules/
+npm-debug.log*
+.DS_Store
+*.tmp
+tests/e2e/screenshots/
+*.bak-*

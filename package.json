@@ -1,0 +1,23 @@
+{
+  "name": "freedom-cqa",
+  "version": "1.0.0",
+  "description": "Conversation Quality Analytics for Freedom Broker — evidence-first evaluation of operator dialogs (RU/KZ/EN) with appeals and human review",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.15"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node scripts/run-tests.js unit integration",
+    "test:unit": "node scripts/run-tests.js unit",
+    "test:integration": "node scripts/run-tests.js integration",
+    "test:e2e": "node tests/e2e/ui.e2e.mjs",
+    "import": "node scripts/import-dataset.js",
+    "evaluate": "node scripts/evaluate-all.js",
+    "estimate": "node scripts/estimate-cost.js",
+    "reset": "node scripts/reset-demo.js"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freedom CQA · Conversation Quality Analytics</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="js/config.js"></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div id="app" class="cqa">
+    <div class="shell">
+      <aside class="sidebar" aria-label="Навигация">
+        <div class="brand">
+          <div class="brand-mark" id="brand-mark"></div>
+          <div>
+            <div class="brand-title">Freedom CQA</div>
+            <div class="brand-sub">Conversation Quality Analytics</div>
+          </div>
+        </div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sidebar-foot" id="sidebar-foot"></div>
+      </aside>
+      <div class="main">
+        <header class="topbar">
+          <div class="crumbs" id="crumbs"></div>
+          <div class="spacer"></div>
+          <div id="topbar-actions" class="row"></div>
+        </header>
+        <main class="view" id="view" tabindex="-1">
+          <div class="loading"><span class="spinner"></span> Загрузка…</div>
+        </main>
+      </div>
+    </div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+  </div>
+</body>
+</html>

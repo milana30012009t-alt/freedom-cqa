@@ -1,0 +1,95 @@
+{
+  "error": "",
+  "isSuccess": true,
+  "data": {
+    "dataset_group_id": "TEST",
+    "total_records": 5,
+    "records": [
+      {
+        "conversation_id": "t-ru-001",
+        "channel": "agent chat",
+        "language": "RU",
+        "transcript": [
+          { "timestamp": "00:00", "speaker": "client", "text": "Где посмотреть мой тариф? В приложении не нахожу." },
+          { "timestamp": "00:02", "speaker": "bot", "text": "Тариф указан на первой странице отчёта брокера." },
+          { "timestamp": "00:20", "speaker": "client", "text": "Можно оператора?" },
+          { "timestamp": "00:22", "speaker": "system", "text": "Эскалация на оператора." },
+          { "timestamp": "01:10", "speaker": "operator", "text": "Здравствуйте! Меня зовут Алина. В веб-версии откройте вкладку «Кабинет» — название тарифа под вашим ФИО." },
+          { "timestamp": "01:30", "speaker": "client", "text": "Нашла, спасибо." },
+          { "timestamp": "01:50", "speaker": "operator", "text": "Рада помочь! Если появятся вопросы — пишите. До свидания!" }
+        ],
+        "audio_url": null
+      },
+      {
+        "conversation_id": "t-kz-001",
+        "channel": "agent chat",
+        "language": "KZ",
+        "transcript": [
+          { "timestamp": "00:00", "speaker": "client", "text": "Брокер есебін қайдан жүктеймін?" },
+          { "timestamp": "00:05", "speaker": "system", "text": "Чат операторға жіберілді." },
+          { "timestamp": "00:50", "speaker": "operator", "text": "Сәлеметсіз бе, мен Дана. «Отчёты и документы» бөлімін ашып, «Отчёт брокера» тармағын таңдаңыз." },
+          { "timestamp": "01:20", "speaker": "client", "text": "Таптым, рақмет." },
+          { "timestamp": "01:40", "speaker": "operator", "text": "Оқасы жоқ. Сау болыңыз!" }
+        ],
+        "audio_url": null
+      },
+      {
+        "conversation_id": "t-en-001",
+        "channel": "agent chat",
+        "language": "EN",
+        "transcript": [
+          { "timestamp": "00:00", "speaker": "client", "text": "How do I find bonds in the app?" },
+          { "timestamp": "00:04", "speaker": "system", "text": "Chat transferred to an agent." },
+          { "timestamp": "01:00", "speaker": "operator", "text": "Hi, I'm Tom. Can't you read? Open Quotes and search by the bond's name." },
+          { "timestamp": "01:20", "speaker": "client", "text": "Okay, I see it." },
+          { "timestamp": "01:40", "speaker": "operator", "text": "Send me your personal number and I'll call you after work. I charge for private advice." },
+          { "timestamp": "02:00", "speaker": "client", "text": "No, thanks." },
+          { "timestamp": "02:10", "speaker": "system", "text": "Agent closed the chat." }
+        ],
+        "audio_url": null
+      },
+      {
+        "conversation_id": "t-ru-002",
+        "channel": "agent chat",
+        "language": "RU",
+        "transcript": [
+          { "timestamp": "00:00", "speaker": "client", "text": "Почему мне ограничили вывод? Посмотрите мой счёт." },
+          { "timestamp": "00:03", "speaker": "system", "text": "Эскалация на оператора." },
+          { "timestamp": "00:40", "speaker": "operator", "text": "Здравствуйте, я Руслан. Я посмотрел: на вашем счёте есть ограничение на вывод." },
+          { "timestamp": "01:00", "speaker": "client", "text": "Подождите, я ещё не подтверждал, что это мой счёт." },
+          { "timestamp": "01:20", "speaker": "operator", "text": "Подтверждение пока не нужно." },
+          { "timestamp": "01:30", "speaker": "system", "text": "Клиент покинул чат." }
+        ],
+        "audio_url": null
+      },
+      {
+        "conversation_id": "t-call-001",
+        "channel": "voice call",
+        "language": "RU",
+        "transcript": [
+          { "timestamp": "2026-11-03T10:00:00.0000000+00:00", "speaker": "system", "text": "Запись и транскрибирование запущены." },
+          { "timestamp": "2026-11-03T10:00:05.5000000+00:00", "speaker": "bot", "text": "Здравствуйте, добро пожаловать во Фридом брокер." },
+          { "timestamp": "2026-11-03T10:00:10.0000000+00:00", "speaker": "system", "text": "Запись и транскрибирование приостановлены." },
+          { "timestamp": "2026-11-03T10:00:20.0000000+00:00", "speaker": "system", "text": "Агент присоединился к разговору с клиентом." },
+          { "timestamp": "2026-11-03T10:00:22.0000000+00:00", "speaker": "system", "text": "Запись и транскрибирование возобновлены." },
+          { "timestamp": "2026-11-03T10:00:25.0000000+00:00", "speaker": "operator", "text": "Здравствуйте, Фридом брокер, меня зовут [Имя скрыто], чем могу помочь?" },
+          { "timestamp": "2026-11-03T10:00:35.0000000+00:00", "speaker": "client", "text": "Хочу проверить статус поручения на покупку облигаций." },
+          { "timestamp": "2026-11-03T10:00:45.0000000+00:00", "speaker": "operator", "text": "Давайте проведем идентификацию, продиктуйте, пожалуйста, ваши фамилию, имя, отчество." },
+          { "timestamp": "2026-11-03T10:00:50.0000000+00:00", "speaker": "client", "text": "[Персональные данные скрыты]" },
+          { "timestamp": "2026-11-03T10:01:00.0000000+00:00", "speaker": "operator", "text": "Я вам направил шестизначный код по смс, продиктуйте данный код." },
+          { "timestamp": "2026-11-03T10:01:10.0000000+00:00", "speaker": "client", "text": "[Данные идентификации скрыты]" },
+          { "timestamp": "2026-11-03T10:01:15.0000000+00:00", "speaker": "operator", "text": "Всё верно, идентификация успешно пройдена. Вижу, что поручение принято и находится в обработке." },
+          { "timestamp": "2026-11-03T10:01:30.0000000+00:00", "speaker": "operator", "text": "Минуту, прошу ожидать на линии." },
+          { "timestamp": "2026-11-03T10:01:31.0000000+00:00", "speaker": "system", "text": "Клиент находится на удержании." },
+          { "timestamp": "2026-11-03T10:01:40.0000000+00:00", "speaker": "operator", "text": "Коллеги, по этой бумаге что скажете?" },
+          { "timestamp": "2026-11-03T10:02:30.0000000+00:00", "speaker": "system", "text": "Клиент больше не находится на удержании." },
+          { "timestamp": "2026-11-03T10:02:35.0000000+00:00", "speaker": "operator", "text": "Спасибо за ожидание. Я направлю вопрос в профильный отдел, ответ сообщим вам завтра до 12:00." },
+          { "timestamp": "2026-11-03T10:02:45.0000000+00:00", "speaker": "client", "text": "Хорошо, спасибо." },
+          { "timestamp": "2026-11-03T10:02:50.0000000+00:00", "speaker": "operator", "text": "Благодарю вас за обращение, всего доброго, до свидания." },
+          { "timestamp": "2026-11-03T10:02:52.0000000+00:00", "speaker": "system", "text": "Клиент завершил разговор." }
+        ],
+        "audio_url": "https://audio.invalid/recording?sig=SECRET_SIGNATURE_123"
+      }
+    ]
+  }
+}

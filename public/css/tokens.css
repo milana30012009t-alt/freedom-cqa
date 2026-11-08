@@ -1,0 +1,94 @@
+/* Design tokens — dark corporate base with Freedom-green accents.
+   All component colours reference these roles; no raw hex inside components. */
+.cqa {
+  color-scheme: dark;
+
+  /* Planes */
+  --bg: #060a0d;
+  --bg-grad: radial-gradient(1200px 600px at 15% -10%, rgba(2, 178, 64, 0.07), transparent 60%),
+             radial-gradient(900px 500px at 110% 10%, rgba(3, 222, 152, 0.05), transparent 60%);
+  --surface-1: #0e151b;
+  --surface-2: #121b22;
+  --surface-3: #18232c;
+  --surface-4: #1f2d38;
+  --overlay: rgba(3, 6, 9, 0.72);
+
+  /* Lines */
+  --line: #1e2a33;
+  --line-strong: #2b3a46;
+  --grid: #1b262f;
+  --axis: #2f3f4b;
+
+  /* Ink */
+  --text-1: #e9eff3;
+  --text-2: #aebbc5;
+  --text-3: #74858f;
+  --text-inverse: #04110a;
+
+  /* Brand */
+  --brand: #02b240;
+  --brand-strong: #12c955;
+  --brand-text: #45d98a;
+  --brand-deep: #0c3324;
+  --brand-wash: rgba(2, 178, 64, 0.12);
+  --brand-ring: rgba(2, 178, 64, 0.45);
+  --teal: #03de98;
+
+  /* Speakers (identity, never status) */
+  --spk-client: #3987e5;
+  --spk-client-wash: rgba(57, 135, 229, 0.10);
+  --spk-operator: #19c26b;
+  --spk-operator-wash: rgba(25, 194, 107, 0.09);
+  --spk-bot: #9085e9;
+  --spk-bot-wash: rgba(144, 133, 233, 0.10);
+  --spk-system: #74858f;
+
+  /* Status (fixed meaning; always paired with icon + label) */
+  --good: #0ca30c;
+  --good-text: #3fcf5a;
+  --good-wash: rgba(12, 163, 12, 0.14);
+  --warning: #fab219;
+  --warning-text: #ffc94d;
+  --warning-wash: rgba(250, 178, 25, 0.13);
+  --serious: #ec835a;
+  --serious-text: #f59c79;
+  --serious-wash: rgba(236, 131, 90, 0.14);
+  --critical: #d03b3b;
+  --critical-text: #ff6b6b;
+  --critical-wash: rgba(208, 59, 59, 0.15);
+  --neutral: #5b6b76;
+  --neutral-wash: rgba(116, 133, 143, 0.14);
+  --info: #3987e5;
+  --info-text: #74aef0;
+  --info-wash: rgba(57, 135, 229, 0.13);
+
+  /* Charts */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+
+  /* Type */
+  --font: system-ui, -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --fs-xs: 11.5px;
+  --fs-sm: 12.5px;
+  --fs-md: 13.5px;
+  --fs-lg: 15px;
+  --fs-xl: 18px;
+  --fs-2xl: 22px;
+  --fs-hero: 44px;
+
+  /* Shape & depth */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 18px 50px rgba(0, 0, 0, 0.5);
+  --focus: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--brand-ring);
+
+  --sidebar-w: 236px;
+  --topbar-h: 56px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
